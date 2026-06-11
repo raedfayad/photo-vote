@@ -1,7 +1,8 @@
 import React from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
-import VotePage from './pages/VotePage'
+import ReviewPage from './pages/ReviewPage'
+import SubmittedPage from './pages/SubmittedPage'
 import VoterLogin from './pages/VoterLogin'
 import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
@@ -25,10 +26,13 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<VoterLogin />} />
         <Route path="/" element={<VoterRoute><Home /></VoterRoute>} />
-        <Route path="/vote/:sceneId" element={<VoterRoute><VotePage /></VoterRoute>} />
+        <Route path="/review" element={<VoterRoute><ReviewPage /></VoterRoute>} />
+        <Route path="/submitted" element={<VoterRoute><SubmittedPage /></VoterRoute>} />
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="/admin/results/:sceneId" element={<AdminRoute><AdminResults /></AdminRoute>} />
+        {/* Legacy per-scene links redirect to the unified voting flow */}
+        <Route path="/vote/:sceneId" element={<VoterRoute><Navigate to="/" replace /></VoterRoute>} />
       </Routes>
     </Router>
   )
