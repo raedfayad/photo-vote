@@ -94,7 +94,9 @@ export default function AdminResults() {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-semibold text-sm">Version {v.label || String.fromCharCode(65 + idx)}</span>
+                        <span className="font-semibold text-sm">
+                          Version {v.label || String.fromCharCode(65 + idx)}
+                        </span>
                         {isWinner && total > 0 && <span className="text-amber-500 text-xs">🏆</span>}
                       </div>
                       <p className="text-gray-400 text-xs mb-2">
@@ -111,18 +113,18 @@ export default function AdminResults() {
                   </div>
 
                   {v.votes.length > 0 && (
-                    <div className="border-t border-gray-100 bg-gray-50 px-3 py-2">
-                      <p className="text-xs text-gray-400 font-medium mb-1.5">Voted by:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {v.votes.map(vote => (
-                          <span
-                            key={vote.id}
-                            className="inline-block bg-white border border-gray-200 text-gray-700 text-xs rounded-full px-2.5 py-0.5"
-                          >
+                    <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 space-y-2">
+                      <p className="text-xs text-gray-400 font-medium">Voted by:</p>
+                      {v.votes.map(vote => (
+                        <div key={vote.id} className="flex items-start justify-between gap-2">
+                          <span className="inline-block bg-white border border-gray-200 text-gray-700 text-xs rounded-full px-2.5 py-0.5 flex-shrink-0">
                             {vote.voterName}
                           </span>
-                        ))}
-                      </div>
+                          {vote.comment && (
+                            <p className="text-xs text-gray-500 italic text-right">"{vote.comment}"</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -138,11 +140,16 @@ export default function AdminResults() {
                 {votes.map(vote => {
                   const v = versions.find(ver => ver.id === vote.versionId)
                   return (
-                    <div key={vote.id} className="py-2 flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-800">{vote.voterName}</span>
-                      <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
-                        Version {v?.label || '?'}
-                      </span>
+                    <div key={vote.id} className="py-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-800">{vote.voterName}</span>
+                        <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+                          Version {v?.label || '?'}
+                        </span>
+                      </div>
+                      {vote.comment && (
+                        <p className="text-xs text-gray-500 mt-0.5 italic">"{vote.comment}"</p>
+                      )}
                     </div>
                   )
                 })}
@@ -150,9 +157,9 @@ export default function AdminResults() {
             </div>
           )}
 
-          {votes.length === 0 && !loading && (
+          {votes.length === 0 && (
             <div className="text-center py-12 text-gray-400">
-              <p>No votes yet for this scene.</p>
+              No votes yet for this scene.
             </div>
           )}
         </>

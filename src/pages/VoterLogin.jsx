@@ -1,27 +1,33 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Layout from '../components/Layout'
 
 const VOTER_PASSWORD = import.meta.env.VITE_VOTER_PASSWORD
 
 export default function VoterLogin() {
+  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (sessionStorage.getItem('voter_auth') === '1') navigate('/')
+    if (sessionStorage.getItem('voter_auth') === '1' && sessionStorage.getItem('voter_name')) {
+      navigate('/')
+    }
   }, [])
 
   const handleLogin = () => {
+    if (!name.trim()) { setError('Please enter your name.'); return }
     if (password === VOTER_PASSWORD) {
       sessionStorage.setItem('voter_auth', '1')
+      sessionStorage.setItem('voter_name', name.trim())
       navigate('/')
     } else {
-      setError('Incorrect password. Ask the organiser for the link.')
+      setError('Incorrect password. Ask the organiser for access.')
       setPassword('')
     }
   }
+
+  const handleKey = (e) => { if (e.key === 'Enter') handleLogin() }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -34,27 +40,33 @@ export default function VoterLogin() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">PhotoVote</h1>
-          <p className="text-gray-500 text-sm mt-1">Enter the password to start voting</p>
+          <p className="text-gray-500 text-sm mt-1">Enter your details to start voting</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+          <input
+            type="text"
+            placeholder="Your name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={handleKey}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            autoFocus
+          />
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            autoFocus
+            onKeyDown={handleKey}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
-          {error && (
-            <p className="text-red-500 text-sm mb-3 text-center">{error}</p>
-          )}
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <button
             onClick={handleLogin}
             className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 active:bg-indigo-800 transition-colors text-base"
           >
-            Enter
+            Start voting
           </button>
         </div>
       </div>
