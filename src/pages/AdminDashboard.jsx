@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const [creating, setCreating] = useState(false)
   const [uploading, setUploading] = useState({}) // sceneId -> { current, total }
   const [expandedScene, setExpandedScene] = useState(null)
+  const [editingScene, setEditingScene] = useState(null) // { id, title, description }
 
   useEffect(() => {
     fetchScenes()
@@ -54,6 +55,7 @@ export default function AdminDashboard() {
     try {
       await addDoc(collection(db, 'scenes'), {
         title: newTitle.trim(),
+        description: '',
         createdAt: serverTimestamp(),
         coverUrl: '',
         versionCount: 0,
@@ -154,6 +156,16 @@ export default function AdminDashboard() {
     }
   }
 
+  const saveEdit = async () => {
+    if (!editingScene || !editingScene.title.trim()) return
+    await updateDoc(doc(db, 'scenes', editingScene.id), {
+      title: editingScene.title.trim(),
+      description: editingScene.description.trim(),
+    })
+    setEditingScene(null)
+    await fetchScenes()
+  }
+
   const copyLink = (sceneId) => {
     const base = window.location.href.split('#')[0]
     navigator.clipboard.writeText(`${base}#/vote/${sceneId}`)
@@ -224,10 +236,59 @@ export default function AdminDashboard() {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">{scene.title}</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {scene.versionCount} photo{scene.versionCount !== 1 ? 's' : ''} · {scene.voteCount} vote{scene.voteCount !== 1 ? 's' : ''}
-                      </p>
+                      {editingScene?.id === scene.id ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={editingScene.title}
+                            onChange={e => setEditingScene(prev => ({ ...prev, title: e.target.value }))}
+                            className="w-full border border-indigo-300 rounded-lg px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            autoFocus
+                          />
+                          <textarea
+                            value={editingScene.description}
+                            onChange={e => setEditingScene(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Description visible to voters (optional)"
+                            rows={2}
+                            className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={saveEdit}
+                              className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 font-medium"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingScene(null)}
+                              className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 font-medium"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-semibold text-gray-900 truncate">{scene.title}</h3>
+                            <button
+                              onClick={() => setEditingScene({ id: scene.id, title: scene.title, description: scene.description || '' })}
+                              className="text-gray-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                              title="Edit scene"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          </div>
+                          {scene.description && (
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{scene.description}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {scene.versionCount} photo{scene.versionCount !== 1 ? 's' : ''} · {scene.voteCount} vote{scene.voteCount !== 1 ? 's' : ''}
+                          </p>
+                        </>
+                      )}
                     </div>
                     <button
                       onClick={() => togglePublish(scene)}
