@@ -15,7 +15,9 @@ export default function Lightbox({
   const [swipeX, setSwipeX] = useState(0)
 
   const containerRef = useRef(null)
-  const lastDistRef = useRef(null)
+  const scaleRef = useRef(1)
+  const pinchStartDistRef = useRef(null)
+  const pinchStartScaleRef = useRef(1)
   const lastTouchRef = useRef(null)
   const swipeOriginRef = useRef(null)
   const swipingRef = useRef(false)
@@ -24,6 +26,7 @@ export default function Lightbox({
   const isSelected = current ? selectedIds.includes(current.id) : false
 
   const resetZoom = useCallback(() => {
+    scaleRef.current = 1
     setScale(1)
     setOffset({ x: 0, y: 0 })
   }, [])
@@ -32,6 +35,7 @@ export default function Lightbox({
     const next = Math.max(0, Math.min(i, versions.length - 1))
     setIndex(next)
     setSwipeX(0)
+    scaleRef.current = 1
     setScale(1)
     setOffset({ x: 0, y: 0 })
   }, [versions.length])
@@ -67,18 +71,21 @@ export default function Lightbox({
     const onWheel = (e) => {
       e.preventDefault()
       const factor = e.deltaY < 0 ? 1.15 : 0.87
-      setScale(s => {
-        const next = Math.min(Math.max(s * factor, 1), 8)
-        if (next <= 1) setOffset({ x: 0, y: 0 })
-        return next
-      })
+      const next = Math.min(Math.max(scaleRef.current * factor, 1), 8)
+      scaleRef.current = next
+      setScale(next)
+      if (next <= 1) setOffset({ x: 0, y: 0 })
     }
 
     const onTouchStart = (e) => {
       if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
-        lastDistRef.current = Math.hypot(dx, dy)
+        const d = Math.hypot(dx, dy)
+        // guard against fingers being too close together
+        if (d < 10) return
+        pinchStartDistRef.current = d
+        pinchStartScaleRef.current = scaleRef.current
         swipeOriginRef.current = null
         lastTouchRef.current = null
         swipingRef.current = false
@@ -87,34 +94,34 @@ export default function Lightbox({
         const y = e.touches[0].clientY
         swipeOriginRef.current = { x, y }
         lastTouchRef.current = { x, y }
-        lastDistRef.current = null
+        pinchStartDistRef.current = null
         swipingRef.current = false
       }
     }
 
     const onTouchMove = (e) => {
       e.preventDefault()
-      if (e.touches.length === 2 && lastDistRef.current != null) {
+      if (e.touches.length === 2 && pinchStartDistRef.current != null) {
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         const dist = Math.hypot(dx, dy)
-        setScale(s => Math.min(Math.max(s * (dist / lastDistRef.current), 1), 8))
-        lastDistRef.current = dist
+        // compute scale absolutely from pinch start — prevents jitter accumulation
+        const next = Math.min(Math.max(pinchStartScaleRef.current * (dist / pinchStartDistRef.current), 1), 8)
+        scaleRef.current = next
+        setScale(next)
+        if (next <= 1) setOffset({ x: 0, y: 0 })
       } else if (e.touches.length === 1 && swipeOriginRef.current && lastTouchRef.current) {
         const cx = e.touches[0].clientX
         const cy = e.touches[0].clientY
         const frameDx = cx - lastTouchRef.current.x
         const frameDy = cy - lastTouchRef.current.y
         const totalDx = cx - swipeOriginRef.current.x
-        setScale(s => {
-          if (s > 1) {
-            setOffset(o => ({ x: o.x + frameDx, y: o.y + frameDy }))
-          } else {
-            swipingRef.current = true
-            setSwipeX(totalDx)
-          }
-          return s
-        })
+        if (scaleRef.current > 1) {
+          setOffset(o => ({ x: o.x + frameDx, y: o.y + frameDy }))
+        } else {
+          swipingRef.current = true
+          setSwipeX(totalDx)
+        }
         lastTouchRef.current = { x: cx, y: cy }
       }
     }
