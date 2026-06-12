@@ -182,6 +182,7 @@ export default function Home() {
         <p className="text-sm text-gray-500 mt-0.5">
           Select your favourite photo from each scene — or "none" if that's what you're feeling.
           You can pick multiple per scene if you <em>really</em> want, but that'll make Raed's job harder when he has to pick just one.
+          For scenes with only one photo, treat it as "is this pic worth posting?"
           Use the comment box per scene to suggest edits (e.g. removing reflections, cropping, etc.).
         </p>
       </div>
