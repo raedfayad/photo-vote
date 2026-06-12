@@ -10,12 +10,14 @@ export default function Lightbox({
   onClose,
 }) {
   const [index, setIndex] = useState(initialIndex)
-  const [scale, setScale] = useState(1)
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const [swipeX, setSwipeX] = useState(0)
+  const [isZoomed, setIsZoomed] = useState(false)
 
   const containerRef = useRef(null)
+  const imgRef = useRef(null)
+  // All gesture state in refs — never triggers React re-renders during gestures
   const scaleRef = useRef(1)
+  const offsetRef = useRef({ x: 0, y: 0 })
+  const swipeXRef = useRef(0)
   const pinchStartDistRef = useRef(null)
   const pinchStartScaleRef = useRef(1)
   const lastTouchRef = useRef(null)
@@ -25,26 +27,34 @@ export default function Lightbox({
   const current = versions[index]
   const isSelected = current ? selectedIds.includes(current.id) : false
 
-  const resetZoom = useCallback(() => {
+  // Write transform directly to the DOM — no React re-render needed
+  const applyTransform = useCallback(() => {
+    if (!imgRef.current) return
+    const s = scaleRef.current
+    const { x, y } = offsetRef.current
+    imgRef.current.style.transform = s > 1
+      ? `scale(${s}) translate(${x / s}px, ${y / s}px)`
+      : `translateX(${swipeXRef.current}px)`
+  }, [])
+
+  const resetGesture = useCallback(() => {
     scaleRef.current = 1
-    setScale(1)
-    setOffset({ x: 0, y: 0 })
+    offsetRef.current = { x: 0, y: 0 }
+    swipeXRef.current = 0
+    setIsZoomed(false)
+    if (imgRef.current) imgRef.current.style.transform = ''
   }, [])
 
   const goTo = useCallback((i) => {
     const next = Math.max(0, Math.min(i, versions.length - 1))
+    resetGesture()
     setIndex(next)
-    setSwipeX(0)
-    scaleRef.current = 1
-    setScale(1)
-    setOffset({ x: 0, y: 0 })
-  }, [versions.length])
+  }, [versions.length, resetGesture])
 
   useEffect(() => {
     setIndex(initialIndex)
-    resetZoom()
-    setSwipeX(0)
-  }, [initialIndex, resetZoom])
+    resetGesture()
+  }, [initialIndex, resetGesture])
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -52,7 +62,6 @@ export default function Lightbox({
     return () => { document.body.style.overflow = prev }
   }, [])
 
-  // Keyboard navigation
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose()
@@ -63,7 +72,6 @@ export default function Lightbox({
     return () => window.removeEventListener('keydown', onKey)
   }, [index, onClose, goTo])
 
-  // Non-passive touch + wheel handlers
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -73,8 +81,9 @@ export default function Lightbox({
       const factor = e.deltaY < 0 ? 1.15 : 0.87
       const next = Math.min(Math.max(scaleRef.current * factor, 1), 8)
       scaleRef.current = next
-      setScale(next)
-      if (next <= 1) setOffset({ x: 0, y: 0 })
+      if (next <= 1) offsetRef.current = { x: 0, y: 0 }
+      applyTransform()
+      setIsZoomed(next > 1)
     }
 
     const onTouchStart = (e) => {
@@ -82,7 +91,6 @@ export default function Lightbox({
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         const d = Math.hypot(dx, dy)
-        // guard against fingers being too close together
         if (d < 10) return
         pinchStartDistRef.current = d
         pinchStartScaleRef.current = scaleRef.current
@@ -90,10 +98,8 @@ export default function Lightbox({
         lastTouchRef.current = null
         swipingRef.current = false
       } else if (e.touches.length === 1) {
-        const x = e.touches[0].clientX
-        const y = e.touches[0].clientY
-        swipeOriginRef.current = { x, y }
-        lastTouchRef.current = { x, y }
+        swipeOriginRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
         pinchStartDistRef.current = null
         swipingRef.current = false
       }
@@ -105,23 +111,25 @@ export default function Lightbox({
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         const dist = Math.hypot(dx, dy)
-        // compute scale absolutely from pinch start — prevents jitter accumulation
+        // Absolute calculation from pinch start — no jitter accumulation
         const next = Math.min(Math.max(pinchStartScaleRef.current * (dist / pinchStartDistRef.current), 1), 8)
         scaleRef.current = next
-        setScale(next)
-        if (next <= 1) setOffset({ x: 0, y: 0 })
+        if (next <= 1) offsetRef.current = { x: 0, y: 0 }
+        applyTransform()
+        // Only update React state when crossing the zoom boundary
+        setIsZoomed(next > 1)
       } else if (e.touches.length === 1 && swipeOriginRef.current && lastTouchRef.current) {
         const cx = e.touches[0].clientX
         const cy = e.touches[0].clientY
         const frameDx = cx - lastTouchRef.current.x
         const frameDy = cy - lastTouchRef.current.y
-        const totalDx = cx - swipeOriginRef.current.x
         if (scaleRef.current > 1) {
-          setOffset(o => ({ x: o.x + frameDx, y: o.y + frameDy }))
+          offsetRef.current = { x: offsetRef.current.x + frameDx, y: offsetRef.current.y + frameDy }
         } else {
           swipingRef.current = true
-          setSwipeX(totalDx)
+          swipeXRef.current = cx - swipeOriginRef.current.x
         }
+        applyTransform()
         lastTouchRef.current = { x: cx, y: cy }
       }
     }
@@ -133,13 +141,14 @@ export default function Lightbox({
         if (Math.abs(totalDx) > 60 && Math.abs(totalDx) > Math.abs(totalDy)) {
           goTo(index + (totalDx < 0 ? 1 : -1))
         } else {
-          setSwipeX(0)
+          swipeXRef.current = 0
+          applyTransform()
         }
       }
       swipingRef.current = false
       swipeOriginRef.current = null
       lastTouchRef.current = null
-      lastDistRef.current = null
+      pinchStartDistRef.current = null
     }
 
     const opts = { passive: false }
@@ -153,7 +162,7 @@ export default function Lightbox({
       el.removeEventListener('touchmove', onTouchMove, opts)
       el.removeEventListener('touchend', onTouchEnd)
     }
-  }, [index, goTo])
+  }, [index, goTo, applyTransform])
 
   if (!current) return null
 
@@ -182,16 +191,16 @@ export default function Lightbox({
         className="flex-1 relative flex items-center justify-center overflow-hidden"
       >
         <img
+          ref={imgRef}
           key={current.id}
           src={current.url}
           alt={`Version ${current.label}`}
           draggable={false}
           className="select-none"
           style={{
-            maxWidth: scale <= 1 ? '100%' : 'none',
-            maxHeight: scale <= 1 ? '100%' : 'none',
+            maxWidth: '100%',
+            maxHeight: '100%',
             objectFit: 'contain',
-            transform: `translateX(${scale <= 1 ? swipeX : 0}px) scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`,
             transformOrigin: 'center center',
             userSelect: 'none',
             WebkitUserSelect: 'none',
@@ -222,10 +231,15 @@ export default function Lightbox({
         )}
 
         {/* Reset zoom (appears when zoomed) */}
-        {scale > 1 && (
+        {isZoomed && (
           <button
             className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/60 hover:bg-black/80 text-white text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
-            onClick={resetZoom}
+            onClick={() => {
+              scaleRef.current = 1
+              offsetRef.current = { x: 0, y: 0 }
+              applyTransform()
+              setIsZoomed(false)
+            }}
           >
             Reset zoom
           </button>
