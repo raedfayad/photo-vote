@@ -214,6 +214,9 @@ export default function Home() {
                 <div>
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Scene {sceneIdx + 1}</span>
                   <h2 className="font-semibold text-gray-900 leading-tight">{scene.title}</h2>
+                  {scene.description && (
+                    <p className="text-sm text-gray-500 mt-0.5">{scene.description}</p>
+                  )}
                 </div>
                 {answered ? (
                   <span className="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
