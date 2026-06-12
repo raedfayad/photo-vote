@@ -13,7 +13,7 @@ export default function AdminLogin() {
   const user = useAuth()
 
   useEffect(() => {
-    if (user && !user.isAnonymous) navigate('/admin/dashboard')
+    if (user && !user.isAnonymous) navigate('/admin/summary')
   }, [user])
 
   const handleGoogle = async () => {
@@ -26,7 +26,7 @@ export default function AdminLogin() {
         setError('This Google account is not authorised as admin.')
         return
       }
-      navigate('/admin/dashboard')
+      navigate('/admin/summary')
     } catch (err) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError('Sign-in failed. Please try again.')
