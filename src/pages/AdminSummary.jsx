@@ -517,15 +517,14 @@ export default function AdminSummary() {
                                     <div className="flex gap-2 flex-wrap">
                                       {pickedVersions.map((v, i) => {
                                         const label = v.label || String.fromCharCode(65 + scene.versions.indexOf(v))
-                                        const initialIndex = scene.versions.findIndex(sv => sv.id === v.id)
                                         return (
                                           <button
                                             key={v.id}
                                             onClick={() => setLightbox({
-                                              versions: scene.versions,
-                                              initialIndex: Math.max(0, initialIndex),
+                                              versions: pickedVersions,
+                                              initialIndex: i,
                                               selectedIds: vote.versionIds || [],
-                                              likedNone: vote.likedNone || false,
+                                              likedNone: false,
                                             })}
                                             className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1 hover:bg-indigo-100 transition-colors"
                                           >
