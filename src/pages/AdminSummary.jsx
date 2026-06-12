@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, orderBy, query, doc, deleteDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
+import Lightbox from '../components/Lightbox'
 
 const pct = (ratio) => Math.round(ratio * 100)
 
@@ -21,6 +22,7 @@ export default function AdminSummary() {
   const [deletingVoter, setDeletingVoter] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [expandedVoter, setExpandedVoter] = useState(null)
+  const [lightbox, setLightbox] = useState(null) // { versions, initialIndex, selectedIds, likedNone }
   const carouselRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -499,19 +501,37 @@ export default function AdminSummary() {
                                 </div>
                                 <div className="px-3 py-2.5">
                                   {vote.likedNone ? (
-                                    <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => setLightbox({
+                                        versions: scene.versions,
+                                        initialIndex: 0,
+                                        selectedIds: [],
+                                        likedNone: true,
+                                      })}
+                                      className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+                                    >
                                       <span className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-sm flex-shrink-0">✕</span>
-                                      <span className="text-xs font-medium text-rose-600">Didn't like any</span>
-                                    </div>
+                                      <span className="text-xs font-medium text-rose-600">Didn't like any — tap to view</span>
+                                    </button>
                                   ) : pickedVersions.length > 0 ? (
                                     <div className="flex gap-2 flex-wrap">
                                       {pickedVersions.map((v, i) => {
                                         const label = v.label || String.fromCharCode(65 + scene.versions.indexOf(v))
+                                        const initialIndex = scene.versions.findIndex(sv => sv.id === v.id)
                                         return (
-                                          <div key={v.id} className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1">
+                                          <button
+                                            key={v.id}
+                                            onClick={() => setLightbox({
+                                              versions: scene.versions,
+                                              initialIndex: Math.max(0, initialIndex),
+                                              selectedIds: vote.versionIds || [],
+                                              likedNone: vote.likedNone || false,
+                                            })}
+                                            className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1 hover:bg-indigo-100 transition-colors"
+                                          >
                                             <img src={v.url} alt={label} className="w-8 h-8 rounded object-cover flex-shrink-0" />
                                             <span className="text-xs font-semibold text-indigo-700">Ver. {label}</span>
-                                          </div>
+                                          </button>
                                         )
                                       })}
                                     </div>
@@ -538,6 +558,18 @@ export default function AdminSummary() {
           </>
         )}
       </main>
+
+      {lightbox && (
+        <Lightbox
+          versions={lightbox.versions}
+          initialIndex={lightbox.initialIndex}
+          selectedIds={lightbox.selectedIds}
+          likedNone={lightbox.likedNone}
+          onToggleVersion={() => {}}
+          onToggleNone={() => {}}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   )
 }
