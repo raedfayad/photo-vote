@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore'
-import { db } from '../firebase'
+import { auth, db } from '../firebase'
 import Layout from '../components/Layout'
 import Lightbox from '../components/Lightbox'
 
@@ -47,13 +47,13 @@ export default function Home() {
   }, [votes])
 
   const prefillVotes = useCallback(async (scenesData) => {
-    const voteKey = voterName.trim().toLowerCase()
-    if (!voteKey) return
+    const uid = auth.currentUser?.uid
+    if (!uid) return
     const prefill = {}
     await Promise.all(
       scenesData.map(async scene => {
         try {
-          const voteDoc = await getDoc(doc(db, 'scenes', scene.id, 'votes', voteKey))
+          const voteDoc = await getDoc(doc(db, 'scenes', scene.id, 'votes', uid))
           if (voteDoc.exists()) {
             const d = voteDoc.data()
             prefill[scene.id] = {
@@ -67,7 +67,7 @@ export default function Home() {
       })
     )
     setVotes(prev => ({ ...prefill, ...prev }))
-  }, [voterName])
+  }, [])
 
   const loadScenes = useCallback(async (skipCache = false) => {
     setLoading(true)
@@ -182,6 +182,7 @@ export default function Home() {
         <p className="text-sm text-gray-500 mt-0.5">
           Select your favourite photo from each scene — or "none" if that's what you're feeling.
           You can pick multiple per scene if you <em>really</em> want, but that'll make Raed's job harder when he has to pick just one.
+          For scenes with only one photo, treat it as "is this pic worth posting?"
           Use the comment box per scene to suggest edits (e.g. removing reflections, cropping, etc.).
         </p>
       </div>
