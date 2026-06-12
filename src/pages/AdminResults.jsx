@@ -56,11 +56,10 @@ export default function AdminResults() {
 
   const maxPicks = Math.max(...versionStats.map(v => v.voters.length), noneCount, 1)
 
-  // Winner: version with most picks (ignoring none)
-  const winner = versionStats.length > 0
-    ? versionStats.reduce((a, b) => a.voters.length >= b.voters.length ? a : b)
-    : null
-  const isWinner = (v) => winner && v.id === winner.id && winner.voters.length > 0
+  const topPickCount = Math.max(...versionStats.map(v => v.voters.length), 0)
+  const winners = topPickCount > 0 ? versionStats.filter(v => v.voters.length === topPickCount) : []
+  const isTie = winners.length > 1
+  const isWinner = (v) => winners.some(w => w.id === v.id)
 
   return (
     <Layout showBack title={scene?.title}>
@@ -75,13 +74,17 @@ export default function AdminResults() {
         </div>
       ) : (
         <>
-          {winner && winner.voters.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 flex items-center gap-3">
-              <span className="text-3xl">🏆</span>
+          {winners.length > 0 && (
+            <div className={`border rounded-2xl p-4 mb-5 flex items-center gap-3 ${isTie ? 'bg-sky-50 border-sky-200' : 'bg-amber-50 border-amber-200'}`}>
+              <span className="text-3xl">{isTie ? '🤝' : '🏆'}</span>
               <div>
-                <p className="font-semibold text-amber-900">Version {winner.label} is most popular</p>
-                <p className="text-sm text-amber-700">
-                  {winner.voters.length} of {totalVoters} voter{totalVoters !== 1 ? 's' : ''} picked it
+                <p className={`font-semibold ${isTie ? 'text-sky-900' : 'text-amber-900'}`}>
+                  {isTie
+                    ? `Tie — Version${winners.length > 2 ? 's' : ''} ${winners.map(w => w.label).join(' & ')} are tied`
+                    : `Version ${winners[0].label} is most popular`}
+                </p>
+                <p className={`text-sm ${isTie ? 'text-sky-700' : 'text-amber-700'}`}>
+                  {topPickCount} of {totalVoters} voter{totalVoters !== 1 ? 's' : ''} picked {isTie ? 'each' : 'it'}
                 </p>
               </div>
             </div>
@@ -99,12 +102,12 @@ export default function AdminResults() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="font-semibold text-sm">Version {label}</span>
-                        {isWinner(v) && totalVoters > 0 && <span className="text-amber-500 text-xs">🏆</span>}
+                        {isWinner(v) && totalVoters > 0 && <span className="text-xs">{isTie ? '🤝' : '🏆'}</span>}
                       </div>
                       <p className="text-gray-400 text-xs mb-2">{v.voters.length} voter{v.voters.length !== 1 ? 's' : ''}</p>
                       <div className="bg-gray-100 rounded-full h-2 mb-1">
                         <div
-                          className={`h-2 rounded-full transition-all duration-500 ${isWinner(v) ? 'bg-amber-400' : 'bg-indigo-400'}`}
+                          className={`h-2 rounded-full transition-all duration-500 ${isWinner(v) ? (isTie ? 'bg-sky-400' : 'bg-amber-400') : 'bg-indigo-400'}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
