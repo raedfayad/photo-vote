@@ -71,10 +71,13 @@ export default function AdminSummary() {
           ...v,
           picks: votes.filter(vote => vote.versionIds.includes(v.id)).length,
         }))
-        const topPicks = Math.max(...versionCounts.map(v => v.picks), 0)
+        // Include none when determining the overall top count
+        const topPicks = Math.max(...versionCounts.map(v => v.picks), noneCount, 0)
         const topVersions = topPicks > 0 ? versionCounts.filter(v => v.picks === topPicks) : []
+        const noneIsTop = noneCount > 0 && noneCount === topPicks
+        const tiedCount = topVersions.length + (noneIsTop ? 1 : 0)
+        const isTie = tiedCount > 1
         const topVersion = topVersions[0] || null
-        const isTie = topVersions.length > 1
 
         const participation = totalVoters > 0 ? voteCount / totalVoters : 0
         const decisiveness = pickerCount > 0 ? topPicks / pickerCount : 0
@@ -94,6 +97,7 @@ export default function AdminSummary() {
           topVersions,
           topVersion,
           topPicks,
+          noneIsTop,
           isTie,
           participation,
           decisiveness,
@@ -216,36 +220,48 @@ export default function AdminSummary() {
                         </div>
 
                         {/* Winner photo */}
-                        {scene.topVersion && scene.topPicks > 0 ? (
-                          <div className="relative">
-                            {/* For ties: show side-by-side thumbnails; for single winner: full photo */}
-                            {scene.isTie ? (
-                              <div className={`grid gap-0.5`} style={{ gridTemplateColumns: `repeat(${Math.min(scene.topVersions.length, 3)}, 1fr)` }}>
-                                {scene.topVersions.slice(0, 3).map(v => (
-                                  <img key={v.id} src={v.url} alt={v.label} className="w-full aspect-video object-cover" />
-                                ))}
+                        {scene.topPicks > 0 ? (() => {
+                          // Build the tile grid: tied versions + none placeholder if noneIsTop
+                          const tileVersions = scene.topVersions.slice(0, scene.noneIsTop ? 2 : 3)
+                          const showNoneTile = scene.noneIsTop
+                          const totalTiles = tileVersions.length + (showNoneTile ? 1 : 0)
+                          const allTopLabels = [
+                            ...scene.topVersions.map(v => `Ver. ${v.label}`),
+                            ...(scene.noneIsTop ? ['None'] : []),
+                          ]
+                          return (
+                            <div className="relative">
+                              {scene.isTie || scene.noneIsTop && scene.topVersions.length === 0 ? (
+                                <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${Math.min(totalTiles, 3)}, 1fr)` }}>
+                                  {tileVersions.map(v => (
+                                    <img key={v.id} src={v.url} alt={v.label} className="w-full aspect-video object-cover" />
+                                  ))}
+                                  {showNoneTile && (
+                                    <div className="aspect-video bg-rose-50 flex items-center justify-center text-2xl">✕</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <img
+                                  src={scene.topVersion.url}
+                                  alt={scene.topVersion.label}
+                                  className="w-full aspect-video object-cover"
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <div className="absolute bottom-3 left-4 right-4">
+                                <p className="text-white font-semibold text-sm drop-shadow">
+                                  {scene.isTie
+                                    ? `🤝 Tie — ${allTopLabels.join(' & ')} (${scene.topPicks} each)`
+                                    : scene.noneIsTop
+                                    ? `✕ "None" wins — ${scene.topPicks} voter${scene.topPicks !== 1 ? 's' : ''}`
+                                    : `🏆 Version ${scene.topVersion.label} — ${scene.topPicks} vote${scene.topPicks !== 1 ? 's' : ''} (${pct(scene.decisiveness)}% of pickers)`}
+                                </p>
                               </div>
-                            ) : (
-                              <img
-                                src={scene.topVersion.url}
-                                alt={scene.topVersion.label}
-                                className="w-full aspect-video object-cover"
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                            <div className="absolute bottom-3 left-4 right-4">
-                              <p className="text-white font-semibold text-sm drop-shadow">
-                                {scene.isTie
-                                  ? `🤝 Tie — Ver. ${scene.topVersions.map(v => v.label).join(' & ')} (${scene.topPicks} each)`
-                                  : `🏆 Version ${scene.topVersion.label} — ${scene.topPicks} vote${scene.topPicks !== 1 ? 's' : ''} (${pct(scene.decisiveness)}% of pickers)`}
-                              </p>
                             </div>
-                          </div>
-                        ) : (
+                          )
+                        })() : (
                           <div className="w-full aspect-video bg-gray-100 flex items-center justify-center">
-                            <p className="text-gray-400 text-sm">
-                              {scene.noneCount > 0 ? '✕ No version liked' : 'No votes yet'}
-                            </p>
+                            <p className="text-gray-400 text-sm">No votes yet</p>
                           </div>
                         )}
 
@@ -371,8 +387,10 @@ export default function AdminSummary() {
                           <p className="text-sm font-medium text-gray-900 truncate">{scene.title}</p>
                           <p className="text-xs text-gray-400">
                             {pct(scene.participation)}% participation
-                            {scene.pickerCount > 0 && (scene.isTie
+                            {scene.topPicks > 0 && (scene.isTie
                               ? ` · tied (${pct(scene.decisiveness)}% each)`
+                              : scene.noneIsTop
+                              ? ` · "none" wins`
                               : ` · ${pct(scene.decisiveness)}% decisive`)}
                           </p>
                         </div>

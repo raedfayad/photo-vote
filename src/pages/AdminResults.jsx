@@ -56,10 +56,13 @@ export default function AdminResults() {
 
   const maxPicks = Math.max(...versionStats.map(v => v.voters.length), noneCount, 1)
 
-  const topPickCount = Math.max(...versionStats.map(v => v.voters.length), 0)
-  const winners = topPickCount > 0 ? versionStats.filter(v => v.voters.length === topPickCount) : []
-  const isTie = winners.length > 1
-  const isWinner = (v) => winners.some(w => w.id === v.id)
+  // Include "none" when determining the overall top count
+  const topPickCount = Math.max(...versionStats.map(v => v.voters.length), noneCount, 0)
+  const topVersions = topPickCount > 0 ? versionStats.filter(v => v.voters.length === topPickCount) : []
+  const noneIsTop = noneCount > 0 && noneCount === topPickCount
+  const tiedCount = topVersions.length + (noneIsTop ? 1 : 0)
+  const isTie = tiedCount > 1
+  const isWinner = (v) => topVersions.some(w => w.id === v.id)
 
   return (
     <Layout showBack title={scene?.title}>
@@ -74,21 +77,32 @@ export default function AdminResults() {
         </div>
       ) : (
         <>
-          {winners.length > 0 && (
-            <div className={`border rounded-2xl p-4 mb-5 flex items-center gap-3 ${isTie ? 'bg-sky-50 border-sky-200' : 'bg-amber-50 border-amber-200'}`}>
-              <span className="text-3xl">{isTie ? '🤝' : '🏆'}</span>
-              <div>
-                <p className={`font-semibold ${isTie ? 'text-sky-900' : 'text-amber-900'}`}>
-                  {isTie
-                    ? `Tie — Version${winners.length > 2 ? 's' : ''} ${winners.map(w => w.label).join(' & ')} are tied`
-                    : `Version ${winners[0].label} is most popular`}
-                </p>
-                <p className={`text-sm ${isTie ? 'text-sky-700' : 'text-amber-700'}`}>
-                  {topPickCount} of {totalVoters} voter{totalVoters !== 1 ? 's' : ''} picked {isTie ? 'each' : 'it'}
-                </p>
+          {topPickCount > 0 && (() => {
+            const allTopLabels = [
+              ...topVersions.map(w => `Version ${w.label}`),
+              ...(noneIsTop ? ['None'] : []),
+            ]
+            const bannerColor = isTie ? 'bg-sky-50 border-sky-200' : noneIsTop ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'
+            const textColor   = isTie ? 'text-sky-900'  : noneIsTop ? 'text-rose-900'  : 'text-amber-900'
+            const subColor    = isTie ? 'text-sky-700'  : noneIsTop ? 'text-rose-700'  : 'text-amber-700'
+            const emoji       = isTie ? '🤝' : noneIsTop ? '✕' : '🏆'
+            const headline    = isTie
+              ? `Tie — ${allTopLabels.join(' & ')}`
+              : noneIsTop
+              ? 'None of these — most popular response'
+              : `Version ${topVersions[0].label} is most popular`
+            return (
+              <div className={`border rounded-2xl p-4 mb-5 flex items-center gap-3 ${bannerColor}`}>
+                <span className="text-3xl">{emoji}</span>
+                <div>
+                  <p className={`font-semibold ${textColor}`}>{headline}</p>
+                  <p className={`text-sm ${subColor}`}>
+                    {topPickCount} of {totalVoters} voter{totalVoters !== 1 ? 's' : ''} picked {isTie ? 'each' : 'it'}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Per-version bars */}
           <div className="space-y-3 mb-4">
@@ -134,15 +148,18 @@ export default function AdminResults() {
 
             {/* None row */}
             {noneCount > 0 && (
-              <div className="bg-white rounded-2xl border border-rose-100 shadow-sm overflow-hidden">
+              <div className={`bg-white rounded-2xl shadow-sm overflow-hidden ${noneIsTop && !isTie ? 'border border-rose-400' : 'border border-rose-100'}`}>
                 <div className="flex gap-3 p-3 items-center">
                   <div className="w-20 h-20 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0 text-2xl">✕</div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-rose-700 mb-0.5">None of these</p>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="font-semibold text-sm text-rose-700">None of these</p>
+                      {noneIsTop && <span className="text-xs">{isTie ? '🤝' : '✕'}</span>}
+                    </div>
                     <p className="text-gray-400 text-xs mb-2">{noneCount} voter{noneCount !== 1 ? 's' : ''}</p>
                     <div className="bg-gray-100 rounded-full h-2">
                       <div
-                        className="bg-rose-300 h-2 rounded-full transition-all duration-500"
+                        className={`h-2 rounded-full transition-all duration-500 ${noneIsTop ? (isTie ? 'bg-sky-400' : 'bg-rose-400') : 'bg-rose-300'}`}
                         style={{ width: `${Math.round((noneCount / maxPicks) * 100)}%` }}
                       />
                     </div>
