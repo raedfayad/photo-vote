@@ -13,7 +13,6 @@ export default function AdminResults() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (sessionStorage.getItem('admin_auth') !== '1') { navigate('/admin'); return }
     const load = async () => {
       try {
         const sceneDoc = await getDoc(doc(db, 'scenes', sceneId))

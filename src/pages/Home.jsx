@@ -180,7 +180,9 @@ export default function Home() {
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900">Hi {voterName} 👋</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Select your favourites and answer all {scenes.length} scene{scenes.length !== 1 ? 's' : ''} to continue.
+          Select your favourite photo from each scene — or "none" if that's what you're feeling.
+          You can pick multiple per scene if you <em>really</em> want, but that'll make Raed's job harder when he has to pick just one.
+          Use the comment box per scene to suggest edits (e.g. removing reflections, cropping, etc.).
         </p>
       </div>
 
@@ -263,9 +265,9 @@ export default function Home() {
                             </div>
                           )}
                         </button>
-                        {/* Expand button */}
+                        {/* Expand button — opens carousel at this version */}
                         <button
-                          onClick={() => setLightbox({ url: v.url, label })}
+                          onClick={() => setLightbox({ versions: scene.versions, initialIndex: idx, sceneId: scene.id })}
                           className="absolute top-2 left-2 w-7 h-7 bg-black/40 hover:bg-black/65 rounded-lg flex items-center justify-center transition-colors touch-manipulation z-10"
                         >
                           <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,7 +321,17 @@ export default function Home() {
         </div>
       </div>
 
-      {lightbox && <Lightbox url={lightbox.url} label={lightbox.label} onClose={() => setLightbox(null)} />}
+      {lightbox && (
+        <Lightbox
+          versions={lightbox.versions}
+          initialIndex={lightbox.initialIndex}
+          selectedIds={votes[lightbox.sceneId]?.versionIds || []}
+          likedNone={votes[lightbox.sceneId]?.likedNone || false}
+          onToggleVersion={(versionId) => toggleVersion(lightbox.sceneId, versionId)}
+          onToggleNone={() => toggleNone(lightbox.sceneId)}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </Layout>
   )
 }
