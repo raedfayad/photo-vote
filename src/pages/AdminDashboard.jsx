@@ -187,6 +187,7 @@ export default function AdminDashboard() {
             <span className="text-gray-400 text-xs ml-2">PhotoVote</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link to="/admin/summary" className="text-gray-400 hover:text-white text-sm">Summary</Link>
             <Link to="/" className="text-gray-400 hover:text-white text-sm">View site</Link>
             <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
           </div>

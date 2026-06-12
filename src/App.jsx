@@ -8,6 +8,7 @@ import VoterLogin from './pages/VoterLogin'
 import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminResults from './pages/AdminResults'
+import AdminSummary from './pages/AdminSummary'
 
 function Spinner() {
   return (
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/admin" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/results/:sceneId" element={<AdminRoute><AdminResults /></AdminRoute>} />
+          <Route path="/admin/summary" element={<AdminRoute><AdminSummary /></AdminRoute>} />
           {/* Legacy per-scene links redirect to the unified voting flow */}
           <Route path="/vote/:sceneId" element={<VoterRoute><Navigate to="/" replace /></VoterRoute>} />
         </Routes>
