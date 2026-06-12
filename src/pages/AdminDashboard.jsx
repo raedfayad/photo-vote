@@ -5,7 +5,8 @@ import {
   serverTimestamp, orderBy, query, updateDoc, writeBatch,
 } from 'firebase/firestore'
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from '../firebase'
+import { signOut } from 'firebase/auth'
+import { db, storage, auth } from '../firebase'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -172,9 +173,9 @@ export default function AdminDashboard() {
       .then(() => alert('Voting link copied!'))
   }
 
-  const logout = () => {
-    sessionStorage.removeItem('admin_auth')
-    navigate('/')
+  const logout = async () => {
+    await signOut(auth)
+    navigate('/admin')
   }
 
   return (
