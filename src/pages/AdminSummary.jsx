@@ -70,10 +70,10 @@ export default function AdminSummary() {
           ...v,
           picks: votes.filter(vote => vote.versionIds.includes(v.id)).length,
         }))
-        const topVersion = versionCounts.length > 0
-          ? versionCounts.reduce((a, b) => a.picks >= b.picks ? a : b)
-          : null
-        const topPicks = topVersion?.picks || 0
+        const topPicks = Math.max(...versionCounts.map(v => v.picks), 0)
+        const topVersions = topPicks > 0 ? versionCounts.filter(v => v.picks === topPicks) : []
+        const topVersion = topVersions[0] || null
+        const isTie = topVersions.length > 1
 
         const participation = totalVoters > 0 ? voteCount / totalVoters : 0
         const decisiveness = pickerCount > 0 ? topPicks / pickerCount : 0
@@ -90,8 +90,10 @@ export default function AdminSummary() {
           noneCount,
           pickerCount,
           versionCounts,
+          topVersions,
           topVersion,
           topPicks,
+          isTie,
           participation,
           decisiveness,
           score,
@@ -215,17 +217,26 @@ export default function AdminSummary() {
                         {/* Winner photo */}
                         {scene.topVersion && scene.topPicks > 0 ? (
                           <div className="relative">
-                            <img
-                              src={scene.topVersion.url}
-                              alt={scene.topVersion.label}
-                              className="w-full aspect-video object-cover"
-                            />
+                            {/* For ties: show side-by-side thumbnails; for single winner: full photo */}
+                            {scene.isTie ? (
+                              <div className={`grid gap-0.5`} style={{ gridTemplateColumns: `repeat(${Math.min(scene.topVersions.length, 3)}, 1fr)` }}>
+                                {scene.topVersions.slice(0, 3).map(v => (
+                                  <img key={v.id} src={v.url} alt={v.label} className="w-full aspect-video object-cover" />
+                                ))}
+                              </div>
+                            ) : (
+                              <img
+                                src={scene.topVersion.url}
+                                alt={scene.topVersion.label}
+                                className="w-full aspect-video object-cover"
+                              />
+                            )}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                             <div className="absolute bottom-3 left-4 right-4">
                               <p className="text-white font-semibold text-sm drop-shadow">
-                                🏆 Version {scene.topVersion.label} —{' '}
-                                {scene.topPicks} vote{scene.topPicks !== 1 ? 's' : ''}{' '}
-                                ({pct(scene.decisiveness)}% of pickers)
+                                {scene.isTie
+                                  ? `🤝 Tie — Ver. ${scene.topVersions.map(v => v.label).join(' & ')} (${scene.topPicks} each)`
+                                  : `🏆 Version ${scene.topVersion.label} — ${scene.topPicks} vote${scene.topPicks !== 1 ? 's' : ''} (${pct(scene.decisiveness)}% of pickers)`}
                               </p>
                             </div>
                           </div>
@@ -241,20 +252,20 @@ export default function AdminSummary() {
                         <div className="px-4 pt-3 pb-2 space-y-2">
                           {scene.versionCounts.map((v, i) => {
                             const label = v.label || String.fromCharCode(65 + i)
-                            const isTop = scene.topVersion?.id === v.id && scene.topPicks > 0
+                            const isTop = scene.topVersions.some(t => t.id === v.id)
                             return (
                               <div key={v.id} className="flex items-center gap-2.5">
                                 <img src={v.url} alt={label} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex justify-between text-xs mb-1">
                                     <span className={`font-semibold ${isTop ? 'text-indigo-700' : 'text-gray-600'}`}>
-                                      {isTop && '🏆 '}Ver. {label}
+                                      {isTop && (scene.isTie ? '🤝 ' : '🏆 ')}Ver. {label}
                                     </span>
                                     <span className="text-gray-400">{v.picks}</span>
                                   </div>
                                   <div className="bg-gray-100 rounded-full h-1.5">
                                     <div
-                                      className={`h-1.5 rounded-full transition-all duration-500 ${isTop ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                                      className={`h-1.5 rounded-full transition-all duration-500 ${isTop ? (scene.isTie ? 'bg-sky-400' : 'bg-indigo-500') : 'bg-gray-300'}`}
                                       style={{ width: `${Math.round((v.picks / maxBar) * 100)}%` }}
                                     />
                                   </div>
@@ -359,7 +370,9 @@ export default function AdminSummary() {
                           <p className="text-sm font-medium text-gray-900 truncate">{scene.title}</p>
                           <p className="text-xs text-gray-400">
                             {pct(scene.participation)}% participation
-                            {scene.pickerCount > 0 && ` · ${pct(scene.decisiveness)}% decisive`}
+                            {scene.pickerCount > 0 && (scene.isTie
+                              ? ` · tied (${pct(scene.decisiveness)}% each)`
+                              : ` · ${pct(scene.decisiveness)}% decisive`)}
                           </p>
                         </div>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 ${rating.color}`}>
