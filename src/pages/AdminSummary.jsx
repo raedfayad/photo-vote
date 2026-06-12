@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, getDocs, orderBy, query, doc, deleteDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
+import Lightbox from '../components/Lightbox'
 
 const pct = (ratio) => Math.round(ratio * 100)
 
@@ -21,6 +22,7 @@ export default function AdminSummary() {
   const [deletingVoter, setDeletingVoter] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [expandedVoter, setExpandedVoter] = useState(null)
+  const [lightbox, setLightbox] = useState(null) // { versions, initialIndex, selectedIds, likedNone }
   const carouselRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -71,10 +73,13 @@ export default function AdminSummary() {
           ...v,
           picks: votes.filter(vote => vote.versionIds.includes(v.id)).length,
         }))
-        const topPicks = Math.max(...versionCounts.map(v => v.picks), 0)
+        // Include none when determining the overall top count
+        const topPicks = Math.max(...versionCounts.map(v => v.picks), noneCount, 0)
         const topVersions = topPicks > 0 ? versionCounts.filter(v => v.picks === topPicks) : []
+        const noneIsTop = noneCount > 0 && noneCount === topPicks
+        const tiedCount = topVersions.length + (noneIsTop ? 1 : 0)
+        const isTie = tiedCount > 1
         const topVersion = topVersions[0] || null
-        const isTie = topVersions.length > 1
 
         const participation = totalVoters > 0 ? voteCount / totalVoters : 0
         const decisiveness = pickerCount > 0 ? topPicks / pickerCount : 0
@@ -94,6 +99,7 @@ export default function AdminSummary() {
           topVersions,
           topVersion,
           topPicks,
+          noneIsTop,
           isTie,
           participation,
           decisiveness,
@@ -151,13 +157,12 @@ export default function AdminSummary() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-gray-900 text-white sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Link to="/admin/dashboard" className="text-gray-400 hover:text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <span className="font-bold">Summary</span>
+          <div className="flex items-center gap-4">
+            <Link to="/admin/dashboard" className="text-gray-400 hover:text-white text-sm">Manage scenes</Link>
+            <Link to="/" className="text-gray-400 hover:text-white text-sm">View site</Link>
+          </div>
         </div>
       </header>
 
@@ -216,36 +221,48 @@ export default function AdminSummary() {
                         </div>
 
                         {/* Winner photo */}
-                        {scene.topVersion && scene.topPicks > 0 ? (
-                          <div className="relative">
-                            {/* For ties: show side-by-side thumbnails; for single winner: full photo */}
-                            {scene.isTie ? (
-                              <div className={`grid gap-0.5`} style={{ gridTemplateColumns: `repeat(${Math.min(scene.topVersions.length, 3)}, 1fr)` }}>
-                                {scene.topVersions.slice(0, 3).map(v => (
-                                  <img key={v.id} src={v.url} alt={v.label} className="w-full aspect-video object-cover" />
-                                ))}
+                        {scene.topPicks > 0 ? (() => {
+                          // Build the tile grid: tied versions + none placeholder if noneIsTop
+                          const tileVersions = scene.topVersions.slice(0, scene.noneIsTop ? 2 : 3)
+                          const showNoneTile = scene.noneIsTop
+                          const totalTiles = tileVersions.length + (showNoneTile ? 1 : 0)
+                          const allTopLabels = [
+                            ...scene.topVersions.map(v => `Ver. ${v.label}`),
+                            ...(scene.noneIsTop ? ['None'] : []),
+                          ]
+                          return (
+                            <div className="relative">
+                              {scene.isTie || scene.noneIsTop && scene.topVersions.length === 0 ? (
+                                <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${Math.min(totalTiles, 3)}, 1fr)` }}>
+                                  {tileVersions.map(v => (
+                                    <img key={v.id} src={v.url} alt={v.label} className="w-full aspect-video object-cover" />
+                                  ))}
+                                  {showNoneTile && (
+                                    <div className="aspect-video bg-rose-50 flex items-center justify-center text-2xl">✕</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <img
+                                  src={scene.topVersion.url}
+                                  alt={scene.topVersion.label}
+                                  className="w-full aspect-video object-cover"
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <div className="absolute bottom-3 left-4 right-4">
+                                <p className="text-white font-semibold text-sm drop-shadow">
+                                  {scene.isTie
+                                    ? `🤝 Tie — ${allTopLabels.join(' & ')} (${scene.topPicks} each)`
+                                    : scene.noneIsTop
+                                    ? `✕ "None" wins — ${scene.topPicks} voter${scene.topPicks !== 1 ? 's' : ''}`
+                                    : `🏆 Version ${scene.topVersion.label} — ${scene.topPicks} vote${scene.topPicks !== 1 ? 's' : ''} (${pct(scene.decisiveness)}% of pickers)`}
+                                </p>
                               </div>
-                            ) : (
-                              <img
-                                src={scene.topVersion.url}
-                                alt={scene.topVersion.label}
-                                className="w-full aspect-video object-cover"
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                            <div className="absolute bottom-3 left-4 right-4">
-                              <p className="text-white font-semibold text-sm drop-shadow">
-                                {scene.isTie
-                                  ? `🤝 Tie — Ver. ${scene.topVersions.map(v => v.label).join(' & ')} (${scene.topPicks} each)`
-                                  : `🏆 Version ${scene.topVersion.label} — ${scene.topPicks} vote${scene.topPicks !== 1 ? 's' : ''} (${pct(scene.decisiveness)}% of pickers)`}
-                              </p>
                             </div>
-                          </div>
-                        ) : (
+                          )
+                        })() : (
                           <div className="w-full aspect-video bg-gray-100 flex items-center justify-center">
-                            <p className="text-gray-400 text-sm">
-                              {scene.noneCount > 0 ? '✕ No version liked' : 'No votes yet'}
-                            </p>
+                            <p className="text-gray-400 text-sm">No votes yet</p>
                           </div>
                         )}
 
@@ -371,8 +388,10 @@ export default function AdminSummary() {
                           <p className="text-sm font-medium text-gray-900 truncate">{scene.title}</p>
                           <p className="text-xs text-gray-400">
                             {pct(scene.participation)}% participation
-                            {scene.pickerCount > 0 && (scene.isTie
+                            {scene.topPicks > 0 && (scene.isTie
                               ? ` · tied (${pct(scene.decisiveness)}% each)`
+                              : scene.noneIsTop
+                              ? ` · "none" wins`
                               : ` · ${pct(scene.decisiveness)}% decisive`)}
                           </p>
                         </div>
@@ -482,19 +501,36 @@ export default function AdminSummary() {
                                 </div>
                                 <div className="px-3 py-2.5">
                                   {vote.likedNone ? (
-                                    <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => setLightbox({
+                                        versions: scene.versions,
+                                        initialIndex: 0,
+                                        selectedIds: [],
+                                        likedNone: true,
+                                      })}
+                                      className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+                                    >
                                       <span className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-sm flex-shrink-0">✕</span>
-                                      <span className="text-xs font-medium text-rose-600">Didn't like any</span>
-                                    </div>
+                                      <span className="text-xs font-medium text-rose-600">Didn't like any — tap to view</span>
+                                    </button>
                                   ) : pickedVersions.length > 0 ? (
                                     <div className="flex gap-2 flex-wrap">
                                       {pickedVersions.map((v, i) => {
                                         const label = v.label || String.fromCharCode(65 + scene.versions.indexOf(v))
                                         return (
-                                          <div key={v.id} className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1">
+                                          <button
+                                            key={v.id}
+                                            onClick={() => setLightbox({
+                                              versions: pickedVersions,
+                                              initialIndex: i,
+                                              selectedIds: vote.versionIds || [],
+                                              likedNone: false,
+                                            })}
+                                            className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1 hover:bg-indigo-100 transition-colors"
+                                          >
                                             <img src={v.url} alt={label} className="w-8 h-8 rounded object-cover flex-shrink-0" />
                                             <span className="text-xs font-semibold text-indigo-700">Ver. {label}</span>
-                                          </div>
+                                          </button>
                                         )
                                       })}
                                     </div>
@@ -502,7 +538,10 @@ export default function AdminSummary() {
                                     <p className="text-xs text-gray-400 italic">No selection recorded</p>
                                   )}
                                   {vote.comment?.trim() && (
-                                    <p className="text-xs text-gray-500 italic mt-1.5">"{vote.comment.trim()}"</p>
+                                    <div className="mt-2 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2">
+                                      <p className="text-xs text-gray-400 font-medium mb-0.5">Comment</p>
+                                      <p className="text-xs text-gray-600 italic">"{vote.comment.trim()}"</p>
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -518,6 +557,18 @@ export default function AdminSummary() {
           </>
         )}
       </main>
+
+      {lightbox && (
+        <Lightbox
+          versions={lightbox.versions}
+          initialIndex={lightbox.initialIndex}
+          selectedIds={lightbox.selectedIds}
+          likedNone={lightbox.likedNone}
+          onToggleVersion={() => {}}
+          onToggleNone={() => {}}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   )
 }
