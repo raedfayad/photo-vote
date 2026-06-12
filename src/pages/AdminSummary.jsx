@@ -519,7 +519,10 @@ export default function AdminSummary() {
                                     <p className="text-xs text-gray-400 italic">No selection recorded</p>
                                   )}
                                   {vote.comment?.trim() && (
-                                    <p className="text-xs text-gray-500 italic mt-1.5">"{vote.comment.trim()}"</p>
+                                    <div className="mt-2 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2">
+                                      <p className="text-xs text-gray-400 font-medium mb-0.5">Comment</p>
+                                      <p className="text-xs text-gray-600 italic">"{vote.comment.trim()}"</p>
+                                    </div>
                                   )}
                                 </div>
                               </div>
