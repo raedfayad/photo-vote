@@ -517,6 +517,7 @@ export default function AdminSummary() {
                                     <div className="flex gap-2 flex-wrap">
                                       {pickedVersions.map((v, i) => {
                                         const label = v.label || String.fromCharCode(65 + scene.versions.indexOf(v))
+                                        const initialIndex = scene.versions.findIndex(sv => sv.id === v.id)
                                         return (
                                           <button
                                             key={v.id}
