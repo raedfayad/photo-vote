@@ -18,8 +18,9 @@ export default function AdminSummary() {
   const [voters, setVoters] = useState([]) // [{ uid, name, sceneIds[] }]
   const [loading, setLoading] = useState(true)
   const [activeIdx, setActiveIdx] = useState(0)
-  const [deletingVoter, setDeletingVoter] = useState(null) // uid being confirmed
-  const [deleting, setDeleting] = useState(null) // uid being deleted
+  const [deletingVoter, setDeletingVoter] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [expandedVoter, setExpandedVoter] = useState(null)
   const carouselRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -390,53 +391,127 @@ export default function AdminSummary() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-4 pt-4 pb-2 border-b border-gray-50">
                   <h2 className="font-semibold text-gray-900">Voters</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Remove a voter to delete all their responses</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Tap a voter to see their responses</p>
                 </div>
                 <div className="divide-y divide-gray-50">
-                  {voters.map(voter => (
-                    <div key={voter.uid} className="px-4 py-3">
-                      {deletingVoter === voter.uid ? (
-                        <div className="flex items-center gap-3">
-                          <p className="flex-1 text-sm text-gray-700">
-                            Delete all {voter.sceneIds.length} response{voter.sceneIds.length !== 1 ? 's' : ''} from{' '}
-                            <strong>{voter.name}</strong>?
-                          </p>
-                          <button
-                            onClick={() => handleDeleteVoter(voter)}
-                            disabled={deleting === voter.uid}
-                            className="text-xs bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
-                          >
-                            {deleting === voter.uid ? 'Deleting…' : 'Delete'}
-                          </button>
-                          <button
-                            onClick={() => setDeletingVoter(null)}
-                            disabled={deleting === voter.uid}
-                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-3 py-1.5 rounded-lg"
-                          >
-                            Cancel
-                          </button>
+                  {voters.map(voter => {
+                    const isExpanded = expandedVoter === voter.uid
+
+                    // Collect this voter's responses across all scenes
+                    const responses = voter.sceneIds.map(sceneId => {
+                      const scene = sceneStats.find(s => s.id === sceneId)
+                      if (!scene) return null
+                      const vote = scene.votes.find(v => v.id === voter.uid)
+                      if (!vote) return null
+                      const pickedVersions = scene.versions.filter(v =>
+                        (vote.versionIds || []).includes(v.id)
+                      )
+                      return { scene, vote, pickedVersions }
+                    }).filter(Boolean)
+
+                    return (
+                      <div key={voter.uid}>
+                        {/* Voter row */}
+                        <div className="px-4 py-3">
+                          {deletingVoter === voter.uid ? (
+                            <div className="flex items-center gap-3">
+                              <p className="flex-1 text-sm text-gray-700">
+                                Delete all {voter.sceneIds.length} response{voter.sceneIds.length !== 1 ? 's' : ''} from{' '}
+                                <strong>{voter.name}</strong>?
+                              </p>
+                              <button
+                                onClick={() => handleDeleteVoter(voter)}
+                                disabled={deleting === voter.uid}
+                                className="text-xs bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
+                              >
+                                {deleting === voter.uid ? 'Deleting…' : 'Delete'}
+                              </button>
+                              <button
+                                onClick={() => setDeletingVoter(null)}
+                                disabled={deleting === voter.uid}
+                                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-3 py-1.5 rounded-lg"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => setExpandedVoter(isExpanded ? null : voter.uid)}
+                                className="flex-1 flex items-center gap-3 text-left min-w-0"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xs font-bold text-indigo-600">
+                                    {voter.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900">{voter.name}</p>
+                                  <p className="text-xs text-gray-400">
+                                    {voter.sceneIds.length} of {sceneStats.length} scene{sceneStats.length !== 1 ? 's' : ''} answered
+                                  </p>
+                                </div>
+                                <svg
+                                  className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => setDeletingVoter(voter.uid)}
+                                className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors flex items-center gap-1 flex-shrink-0"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Remove
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{voter.name}</p>
-                            <p className="text-xs text-gray-400">
-                              {voter.sceneIds.length} scene{voter.sceneIds.length !== 1 ? 's' : ''} answered
-                            </p>
+
+                        {/* Expanded responses */}
+                        {isExpanded && (
+                          <div className="border-t border-gray-50 bg-gray-50/60 px-4 py-3 space-y-3">
+                            {responses.map(({ scene, vote, pickedVersions }, rIdx) => (
+                              <div key={scene.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50">
+                                  <p className="text-xs font-semibold text-gray-700 truncate">{scene.title}</p>
+                                  <span className="text-xs text-gray-400 flex-shrink-0 ml-2">Scene {sceneStats.indexOf(scene) + 1}</span>
+                                </div>
+                                <div className="px-3 py-2.5">
+                                  {vote.likedNone ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-sm flex-shrink-0">✕</span>
+                                      <span className="text-xs font-medium text-rose-600">Didn't like any</span>
+                                    </div>
+                                  ) : pickedVersions.length > 0 ? (
+                                    <div className="flex gap-2 flex-wrap">
+                                      {pickedVersions.map((v, i) => {
+                                        const label = v.label || String.fromCharCode(65 + scene.versions.indexOf(v))
+                                        return (
+                                          <div key={v.id} className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1">
+                                            <img src={v.url} alt={label} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                            <span className="text-xs font-semibold text-indigo-700">Ver. {label}</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-gray-400 italic">No selection recorded</p>
+                                  )}
+                                  {vote.comment?.trim() && (
+                                    <p className="text-xs text-gray-500 italic mt-1.5">"{vote.comment.trim()}"</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <button
-                            onClick={() => setDeletingVoter(voter.uid)}
-                            className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors flex items-center gap-1"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
