@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { collection, doc, getDocs, orderBy, query, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase'
+import { auth, db } from '../firebase'
 import Layout from '../components/Layout'
 
 export default function ReviewPage() {
@@ -40,12 +40,13 @@ export default function ReviewPage() {
   }, [])
 
   const handleSubmit = async () => {
+    const uid = auth.currentUser?.uid
+    if (!uid) { alert('Session expired. Please log in again.'); navigate('/login'); return }
     setSubmitting(true)
     try {
-      const voteKey = voterName.trim().toLowerCase()
       await Promise.all(
         Object.entries(votes).map(([sceneId, vote]) =>
-          setDoc(doc(db, 'scenes', sceneId, 'votes', voteKey), {
+          setDoc(doc(db, 'scenes', sceneId, 'votes', uid), {
             versionIds: vote.versionIds || [],
             likedNone: vote.likedNone || false,
             voterName: voterName.trim(),
