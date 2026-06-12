@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { collection, getDocs, orderBy, query, where, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, orderBy, query, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import Layout from '../components/Layout'
 
@@ -22,23 +22,21 @@ export default function Home() {
   useEffect(() => {
     const load = async () => {
       try {
-        const q = query(
-          collection(db, 'scenes'),
-          where('published', '==', true),
-          orderBy('createdAt', 'desc')
-        )
-        const snap = await getDocs(q)
+        const snap = await getDocs(collection(db, 'scenes'))
         const scenesData = await Promise.all(
-          snap.docs.map(async d => {
-            const vSnap = await getDocs(
-              query(collection(db, 'scenes', d.id, 'versions'), orderBy('uploadedAt', 'asc'))
-            )
-            return {
-              id: d.id,
-              ...d.data(),
-              versions: vSnap.docs.map(v => ({ id: v.id, ...v.data() })),
-            }
-          })
+          snap.docs
+            .filter(d => d.data().published === true)
+            .sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0))
+            .map(async d => {
+              const vSnap = await getDocs(
+                query(collection(db, 'scenes', d.id, 'versions'), orderBy('uploadedAt', 'asc'))
+              )
+              return {
+                id: d.id,
+                ...d.data(),
+                versions: vSnap.docs.map(v => ({ id: v.id, ...v.data() })),
+              }
+            })
         )
         setScenes(scenesData)
 
@@ -88,7 +86,6 @@ export default function Home() {
 
   const handleReview = () => {
     if (!allVoted) {
-      // Scroll to first unvoted scene
       const first = scenes.find(s => !votes[s.id]?.versionId)
       if (first && sceneRefs.current[first.id]) {
         sceneRefs.current[first.id].scrollIntoView({ behavior: 'smooth', block: 'start' })
