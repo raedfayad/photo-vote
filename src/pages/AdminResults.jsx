@@ -11,13 +11,18 @@ export default function AdminResults() {
   const [versions, setVersions] = useState([])
   const [votes, setVotes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [sceneList, setSceneList] = useState([]) // [{id, title}] ordered by createdAt desc
 
   useEffect(() => {
     const load = async () => {
       try {
-        const sceneDoc = await getDoc(doc(db, 'scenes', sceneId))
+        const [sceneDoc, allSnap] = await Promise.all([
+          getDoc(doc(db, 'scenes', sceneId)),
+          getDocs(query(collection(db, 'scenes'), orderBy('createdAt', 'desc'))),
+        ])
         if (!sceneDoc.exists()) { navigate('/admin/dashboard'); return }
         setScene({ id: sceneDoc.id, ...sceneDoc.data() })
+        setSceneList(allSnap.docs.map(d => ({ id: d.id, title: d.data().title })))
 
         const vSnap = await getDocs(
           query(collection(db, 'scenes', sceneId, 'versions'), orderBy('uploadedAt', 'asc'))
@@ -36,6 +41,10 @@ export default function AdminResults() {
     }
     load()
   }, [sceneId])
+
+  const currentIdx = sceneList.findIndex(s => s.id === sceneId)
+  const prevScene = currentIdx > 0 ? sceneList[currentIdx - 1] : null
+  const nextScene = currentIdx !== -1 && currentIdx < sceneList.length - 1 ? sceneList[currentIdx + 1] : null
 
   // Normalise: support old single-versionId format
   const normVote = (vote) => ({
@@ -67,8 +76,10 @@ export default function AdminResults() {
   return (
     <Layout showBack title={scene?.title}>
       <div className="flex items-baseline justify-between mb-5">
-        <h1 className="text-xl font-bold truncate mr-2">{scene?.title}</h1>
-        <span className="text-sm text-gray-400 flex-shrink-0">{totalVoters} voter{totalVoters !== 1 ? 's' : ''}</span>
+        <h1 className="text-xl font-bold truncate mr-2">{scene?.title ?? '…'}</h1>
+        {!loading && (
+          <span className="text-sm text-gray-400 flex-shrink-0">{totalVoters} voter{totalVoters !== 1 ? 's' : ''}</span>
+        )}
       </div>
 
       {loading ? (
@@ -214,6 +225,37 @@ export default function AdminResults() {
 
           {normVotes.length === 0 && (
             <div className="text-center py-12 text-gray-400">No votes yet for this scene.</div>
+          )}
+
+          {/* Prev / Next scene navigation */}
+          {sceneList.length > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-5 border-t border-gray-200">
+              {prevScene ? (
+                <button
+                  onClick={() => navigate(`/admin/results/${prevScene.id}`)}
+                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="truncate max-w-[130px]">{prevScene.title}</span>
+                </button>
+              ) : <div />}
+              <span className="text-xs text-gray-400 flex-shrink-0 px-2">
+                {currentIdx + 1} / {sceneList.length}
+              </span>
+              {nextScene ? (
+                <button
+                  onClick={() => navigate(`/admin/results/${nextScene.id}`)}
+                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                >
+                  <span className="truncate max-w-[130px]">{nextScene.title}</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ) : <div />}
+            </div>
           )}
         </>
       )}

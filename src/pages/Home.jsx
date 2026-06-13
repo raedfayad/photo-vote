@@ -214,9 +214,9 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="mb-6">
-        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-          <span>{answeredCount} of {scenes.length} scenes answered</span>
+      <div className="mb-4">
+        <div className="flex justify-between text-xs text-gray-500 mb-2">
+          <span>{answeredCount} of {scenes.length} answered</span>
           <div className="flex items-center gap-3">
             {allAnswered && <span className="text-green-600 font-medium">All done!</span>}
             <button
@@ -230,12 +230,40 @@ export default function Home() {
             </button>
           </div>
         </div>
-        <div className="bg-gray-200 rounded-full h-1.5">
-          <div
-            className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
-            style={{ width: `${(answeredCount / scenes.length) * 100}%` }}
-          />
+        {/* Segmented progress bar — each segment = one scene, tap to jump */}
+        <div className="flex gap-1">
+          {scenes.map((scene, i) => {
+            const done = isAnswered(votes[scene.id])
+            return (
+              <button
+                key={scene.id}
+                onClick={() => sceneRefs.current[scene.id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                title={`Scene ${i + 1}: ${scene.title}`}
+                className={`flex-1 h-2 rounded-full transition-colors duration-300 ${done ? 'bg-indigo-500' : 'bg-gray-200'}`}
+              />
+            )
+          })}
         </div>
+      </div>
+
+      {/* Scene chip navigator */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar mb-5 pb-0.5">
+        {scenes.map((scene, i) => {
+          const done = isAnswered(votes[scene.id])
+          return (
+            <button
+              key={scene.id}
+              onClick={() => sceneRefs.current[scene.id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className={`flex-shrink-0 h-7 px-2.5 rounded-full text-xs font-semibold transition-colors ${
+                done
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+              }`}
+            >
+              {done ? `✓ ${i + 1}` : `${i + 1}`}
+            </button>
+          )
+        })}
       </div>
 
       <div className="space-y-8 mb-32">
@@ -355,7 +383,7 @@ export default function Home() {
                 : 'bg-gray-200 text-gray-500'
             }`}
           >
-            {allAnswered ? 'Review & Submit →' : `Answer all scenes to continue (${answeredCount}/${scenes.length})`}
+            {allAnswered ? 'Review & Submit →' : `↓ Jump to next unanswered (${answeredCount}/${scenes.length})`}
           </button>
         </div>
       </div>
