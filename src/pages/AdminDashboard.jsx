@@ -7,6 +7,7 @@ import {
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'
 import { signOut } from 'firebase/auth'
 import { db, storage, auth } from '../firebase'
+import AdminNav from '../components/AdminNav'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -180,19 +181,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-900 text-white sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div>
-            <span className="font-bold">Admin</span>
-            <span className="text-gray-400 text-xs ml-2">PhotoVote</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link to="/admin/summary" className="text-gray-400 hover:text-white text-sm">Summary</Link>
-            <Link to="/" className="text-gray-400 hover:text-white text-sm">View site</Link>
-            <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
-          </div>
-        </div>
-      </header>
+      <AdminNav />
 
       <main className="max-w-3xl mx-auto px-4 py-6">
         {/* New scene */}

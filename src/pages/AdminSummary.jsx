@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { collection, getDocs, orderBy, query, doc, deleteDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import Lightbox from '../components/Lightbox'
+import AdminNav from '../components/AdminNav'
 
 const pct = (ratio) => Math.round(ratio * 100)
 
@@ -156,15 +157,7 @@ export default function AdminSummary() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-900 text-white sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="font-bold">Summary</span>
-          <div className="flex items-center gap-4">
-            <Link to="/admin/dashboard" className="text-gray-400 hover:text-white text-sm">Manage scenes</Link>
-            <Link to="/" className="text-gray-400 hover:text-white text-sm">View site</Link>
-          </div>
-        </div>
-      </header>
+      <AdminNav />
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         {loading ? (
@@ -379,11 +372,21 @@ export default function AdminSummary() {
                         className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                       >
                         <span className="w-5 text-xs font-bold text-gray-400 text-right flex-shrink-0">{i + 1}</span>
-                        {scene.topVersion?.url ? (
-                          <img src={scene.topVersion.url} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" alt="" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0" />
-                        )}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {scene.topVersion?.url ? (
+                            <img src={scene.topVersion.url} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-gray-100" />
+                          )}
+                          {scene.topPicks > 0 && (
+                            <div className="text-center leading-tight">
+                              <p className="text-xs font-bold text-gray-700">
+                                {scene.noneIsTop ? '✕' : `V${scene.topVersion?.label || '?'}`}
+                              </p>
+                              <p className="text-xs text-gray-400">{scene.topPicks}v</p>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{scene.title}</p>
                           <p className="text-xs text-gray-400">
@@ -404,6 +407,33 @@ export default function AdminSummary() {
                 </div>
               </div>
             )}
+
+            {/* All comments feed */}
+            {(() => {
+              const allComments = sceneStats.flatMap(scene =>
+                scene.comments.map(c => ({ ...c, sceneTitle: scene.title }))
+              )
+              if (allComments.length === 0) return null
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-4 pt-4 pb-2 border-b border-gray-50">
+                    <h2 className="font-semibold text-gray-900">All comments</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">{allComments.length} comment{allComments.length !== 1 ? 's' : ''} across all scenes</p>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {allComments.map((c, i) => (
+                      <div key={i} className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs font-semibold text-gray-700 bg-gray-100 rounded-full px-2 py-0.5">{c.name}</span>
+                          <span className="text-xs text-gray-400 truncate">{c.sceneTitle}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 italic">"{c.text}"</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Voter management */}
             {voters.length > 0 && (
